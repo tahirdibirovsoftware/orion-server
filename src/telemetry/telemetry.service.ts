@@ -6,28 +6,12 @@ import { ITelemetry } from './telemetry.model';
 export class TelemetryService {
   constructor(@Inject('POSTGRES_POOL') private readonly pool: Pool) {}
 
-  getAllPackets = async (): Promise<ITelemetry[]> => {
-    const query = `
-      SELECT *
-      FROM Telemetry
-      ORDER BY packetNumber ASC
-    `;
-
-    try {
-      const result = await this.pool.query(query);
-      return result.rows;
-    } catch (error) {
-      console.error('Error getting all telemetry packets', error);
-      throw error;
-    }
-  };
-
   addNewPacket = async (packet: ITelemetry): Promise<void> => {
     const query = `
       INSERT INTO Telemetry (
         packetNumber, satelliteStatus, errorCode, missionTime, pressure1, pressure2,
         altitude1, altitude2, altitudeDifference, descentRate, temp, voltageLevel,
-        gps1Latitude, gps1Longitude, gps1Altitude, pitch, roll, yaw, lnln, iotData, teamId
+        gps1Latitude, gps1Longitude, gps1Altitude, pitch, roll, YAW, LNLN, iotData, teamId
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
       )
@@ -51,8 +35,8 @@ export class TelemetryService {
       packet.gps1Altitude,
       packet.pitch,
       packet.roll,
-      packet.yaw,
-      packet.LNLN,
+      packet.yaw, // Ensure yaw matches the correct property in ITelemetry
+      packet.LNLN, // Ensure LNLN matches the correct property in ITelemetry
       packet.iotData,
       packet.teamId,
     ];
@@ -69,7 +53,7 @@ export class TelemetryService {
     const query = `
       SELECT *
       FROM Telemetry
-      ORDER BY packetNumber DESC
+      ORDER BY packetId DESC
       LIMIT 1
     `;
 
@@ -81,6 +65,22 @@ export class TelemetryService {
       return null;
     } catch (error) {
       console.error('Error getting latest telemetry packet', error);
+      throw error;
+    }
+  };
+
+  getAllPackets = async (): Promise<ITelemetry[]> => {
+    const query = `
+      SELECT *
+      FROM Telemetry
+      ORDER BY packetId ASC
+    `;
+
+    try {
+      const result = await this.pool.query(query);
+      return result.rows;
+    } catch (error) {
+      console.error('Error getting all telemetry packets', error);
       throw error;
     }
   };
