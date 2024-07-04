@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: orion-server
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: POSTGRES_USER
+        value: oriondb_owner
+      - key: POSTGRES_HOST
+        value: ep-damp-block-a2xfpxq9-pooler.eu-central-1.aws.neon.tech
+      - key: POSTGRES_NAME
+        value: oriondb
+      - key: POSTGRES_PASSWORD
+        value: cIZdG8HaCx7y
+      - key: POSTGRES_PORT
+        value: '5432'
+      - key: POSTGRES_SSLMODE
+        value: require
+    regions:
+      - frankfurt
