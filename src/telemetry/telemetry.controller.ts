@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Delete } from '@nestjs/common';
+import { Body, Controller, Get, Post, Delete, HttpException, HttpStatus } from '@nestjs/common';
 import { TelemetryService } from './telemetry.service';
 import { ITelemetry } from './telemetry.model';
 
@@ -8,21 +8,37 @@ export class TelemetryController {
 
   @Post('/')
   async addNewPacket(@Body() packet: ITelemetry) {
-    await this.telemetryService.addNewPacket(packet);
+    try {
+      await this.telemetryService.addNewPacket(packet);
+    } catch (error) {
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   @Get('/latest')
   async getLatestPacket() {
-    return await this.telemetryService.getLatestPacket();
+    try {
+      return await this.telemetryService.getLatestPacket();
+    } catch (error) {
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   @Get('/')
   async getAllPackets() {
-    return await this.telemetryService.getAllPackets();
+    try {
+      return await this.telemetryService.getAllPackets();
+    } catch (error) {
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   @Delete('/')
   async removeAllPackets() {
-    await this.telemetryService.removeAllPackets();
+    try {
+      await this.telemetryService.removeAllPackets();
+    } catch (error) {
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 }

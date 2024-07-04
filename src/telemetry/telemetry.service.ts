@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Pool } from 'pg';
 import { ITelemetry } from './telemetry.model';
+import { DatabaseException } from 'src/errors/database.exception';
 
 @Injectable()
 export class TelemetryService {
@@ -11,7 +12,7 @@ export class TelemetryService {
       INSERT INTO Telemetry (
         packetNumber, satelliteStatus, errorCode, missionTime, pressure1, pressure2,
         altitude1, altitude2, altitudeDifference, descentRate, temp, voltageLevel,
-        gps1Latitude, gps1Longitude, gps1Altitude, pitch, roll, YAW, LNLN, iotData, teamId
+        gps1Latitude, gps1Longitude, gps1Altitude, pitch, roll, yaw, LNLN, iotData, teamId
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
       )
@@ -35,8 +36,8 @@ export class TelemetryService {
       packet.gps1Altitude,
       packet.pitch,
       packet.roll,
-      packet.yaw, // Ensure yaw matches the correct property in ITelemetry
-      packet.LNLN, // Ensure LNLN matches the correct property in ITelemetry
+      packet.yaw,
+      packet.LNLN,
       packet.iotData,
       packet.teamId,
     ];
@@ -44,8 +45,8 @@ export class TelemetryService {
     try {
       await this.pool.query(query, values);
     } catch (error) {
-      console.error('Error inserting new telemetry packet', error);
-      throw error;
+      console.error('Error inserting new telemetry packet:', error);
+      throw new DatabaseException('Failed to insert new telemetry packet.');
     }
   };
 
@@ -64,8 +65,8 @@ export class TelemetryService {
       }
       return null;
     } catch (error) {
-      console.error('Error getting latest telemetry packet', error);
-      throw error;
+      console.error('Error getting latest telemetry packet:', error);
+      throw new DatabaseException('Failed to retrieve latest telemetry packet.');
     }
   };
 
@@ -80,8 +81,8 @@ export class TelemetryService {
       const result = await this.pool.query(query);
       return result.rows;
     } catch (error) {
-      console.error('Error getting all telemetry packets', error);
-      throw error;
+      console.error('Error getting all telemetry packets:', error);
+      throw new DatabaseException('Failed to retrieve all telemetry packets.');
     }
   };
 
@@ -93,8 +94,8 @@ export class TelemetryService {
     try {
       await this.pool.query(query);
     } catch (error) {
-      console.error('Error removing all telemetry packets', error);
-      throw error;
+      console.error('Error removing all telemetry packets:', error);
+      throw new DatabaseException('Failed to remove all telemetry packets.');
     }
   };
 }
