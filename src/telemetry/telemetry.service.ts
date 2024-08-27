@@ -1,11 +1,42 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Pool } from 'pg';
 import { ITelemetry } from './telemetry.model';
 import { DatabaseException } from 'src/errors/database.exception';
+import { retry } from 'src/utils/retry';
+import { CircuitBreaker } from 'src/utils/circuit-breaker';
 
 @Injectable()
 export class TelemetryService {
-  constructor(@Inject('POSTGRES_POOL') private readonly pool: Pool) {}
+  private readonly logger = new Logger(TelemetryService.name);
+  private readonly circuitBreaker: CircuitBreaker;
+
+  constructor(@Inject('POSTGRES_POOL') private readonly pool: Pool) {
+    this.circuitBreaker = new CircuitBreaker(this.pool, {
+      failureThreshold: 5,
+      successThreshold: 2,
+      timeout: 10000,
+    });
+  }
+
+  private async executeQuery(query: string, values?: any[]): Promise<any> {
+    return this.circuitBreaker.execute(async () => {
+      return retry(
+        async () => {
+          const client = await this.pool.connect();
+          try {
+            return await client.query(query, values);
+          } finally {
+            client.release();
+          }
+        },
+        {
+          retries: 3,
+          minTimeout: 1000,
+          factor: 2,
+        }
+      );
+    });
+  }
 
   addNewPacket = async (packet: ITelemetry): Promise<void> => {
     const query = `
@@ -43,9 +74,9 @@ export class TelemetryService {
     ];
 
     try {
-      await this.pool.query(query, values);
+      await this.executeQuery(query, values);
     } catch (error) {
-      console.error('Error inserting new telemetry packet:', error);
+      this.logger.error(`Error inserting new telemetry packet: ${error.message}`, error.stack);
       throw new DatabaseException('Failed to insert new telemetry packet.');
     }
   };
@@ -59,10 +90,10 @@ export class TelemetryService {
     `;
 
     try {
-      const result = await this.pool.query(query);
+      const result = await this.executeQuery(query);
       return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
-      console.error('Error getting latest telemetry packet:', error);
+      this.logger.error(`Error getting latest telemetry packet: ${error.message}`, error.stack);
       throw new DatabaseException('Failed to retrieve latest telemetry packet.');
     }
   };
@@ -75,10 +106,10 @@ export class TelemetryService {
     `;
 
     try {
-      const result = await this.pool.query(query);
+      const result = await this.executeQuery(query);
       return result.rows;
     } catch (error) {
-      console.error('Error getting all telemetry packets:', error);
+      this.logger.error(`Error getting all telemetry packets: ${error.message}`, error.stack);
       throw new DatabaseException('Failed to retrieve all telemetry packets.');
     }
   };
@@ -89,9 +120,9 @@ export class TelemetryService {
     `;
 
     try {
-      await this.pool.query(query);
+      await this.executeQuery(query);
     } catch (error) {
-      console.error('Error removing all telemetry packets:', error);
+      this.logger.error(`Error removing all telemetry packets: ${error.message}`, error.stack);
       throw new DatabaseException('Failed to remove all telemetry packets.');
     }
   };

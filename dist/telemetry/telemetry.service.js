@@ -11,14 +11,18 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var TelemetryService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TelemetryService = void 0;
 const common_1 = require("@nestjs/common");
 const pg_1 = require("pg");
 const database_exception_1 = require("../errors/database.exception");
-let TelemetryService = class TelemetryService {
+const retry_1 = require("../utils/retry");
+const circuit_breaker_1 = require("../utils/circuit-breaker");
+let TelemetryService = TelemetryService_1 = class TelemetryService {
     constructor(pool) {
         this.pool = pool;
+        this.logger = new common_1.Logger(TelemetryService_1.name);
         this.addNewPacket = async (packet) => {
             const query = `
       INSERT INTO Telemetry (
@@ -53,10 +57,10 @@ let TelemetryService = class TelemetryService {
                 packet.teamId,
             ];
             try {
-                await this.pool.query(query, values);
+                await this.executeQuery(query, values);
             }
             catch (error) {
-                console.error('Error inserting new telemetry packet:', error);
+                this.logger.error(`Error inserting new telemetry packet: ${error.message}`, error.stack);
                 throw new database_exception_1.DatabaseException('Failed to insert new telemetry packet.');
             }
         };
@@ -68,11 +72,11 @@ let TelemetryService = class TelemetryService {
       LIMIT 1
     `;
             try {
-                const result = await this.pool.query(query);
+                const result = await this.executeQuery(query);
                 return result.rows.length > 0 ? result.rows[0] : null;
             }
             catch (error) {
-                console.error('Error getting latest telemetry packet:', error);
+                this.logger.error(`Error getting latest telemetry packet: ${error.message}`, error.stack);
                 throw new database_exception_1.DatabaseException('Failed to retrieve latest telemetry packet.');
             }
         };
@@ -83,11 +87,11 @@ let TelemetryService = class TelemetryService {
       ORDER BY packetId ASC
     `;
             try {
-                const result = await this.pool.query(query);
+                const result = await this.executeQuery(query);
                 return result.rows;
             }
             catch (error) {
-                console.error('Error getting all telemetry packets:', error);
+                this.logger.error(`Error getting all telemetry packets: ${error.message}`, error.stack);
                 throw new database_exception_1.DatabaseException('Failed to retrieve all telemetry packets.');
             }
         };
@@ -96,17 +100,39 @@ let TelemetryService = class TelemetryService {
       DELETE FROM Telemetry
     `;
             try {
-                await this.pool.query(query);
+                await this.executeQuery(query);
             }
             catch (error) {
-                console.error('Error removing all telemetry packets:', error);
+                this.logger.error(`Error removing all telemetry packets: ${error.message}`, error.stack);
                 throw new database_exception_1.DatabaseException('Failed to remove all telemetry packets.');
             }
         };
+        this.circuitBreaker = new circuit_breaker_1.CircuitBreaker(this.pool, {
+            failureThreshold: 5,
+            successThreshold: 2,
+            timeout: 10000,
+        });
+    }
+    async executeQuery(query, values) {
+        return this.circuitBreaker.execute(async () => {
+            return (0, retry_1.retry)(async () => {
+                const client = await this.pool.connect();
+                try {
+                    return await client.query(query, values);
+                }
+                finally {
+                    client.release();
+                }
+            }, {
+                retries: 3,
+                minTimeout: 1000,
+                factor: 2,
+            });
+        });
     }
 };
 exports.TelemetryService = TelemetryService;
-exports.TelemetryService = TelemetryService = __decorate([
+exports.TelemetryService = TelemetryService = TelemetryService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, common_1.Inject)('POSTGRES_POOL')),
     __metadata("design:paramtypes", [pg_1.Pool])
