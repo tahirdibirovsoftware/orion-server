@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Delete, HttpException, HttpStatus } from '@nestjs/common';
+import { Body, Controller, Get, Post, Delete, HttpCode, HttpStatus, NotFoundException } from '@nestjs/common';
 import { TelemetryService } from './telemetry.service';
 import { ITelemetry } from './telemetry.model';
 
@@ -7,38 +7,29 @@ export class TelemetryController {
   constructor(private readonly telemetryService: TelemetryService) {}
 
   @Post('/')
+  @HttpCode(HttpStatus.CREATED)
   async addNewPacket(@Body() packet: ITelemetry) {
-    try {
-      await this.telemetryService.addNewPacket(packet);
-    } catch (error) {
-      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+    await this.telemetryService.addNewPacket(packet);
+    return { message: 'Telemetry packet added successfully' };
   }
 
   @Get('/latest')
   async getLatestPacket() {
-    try {
-      return await this.telemetryService.getLatestPacket();
-    } catch (error) {
-      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    const packet = await this.telemetryService.getLatestPacket();
+    if (!packet) {
+      throw new NotFoundException('No telemetry packets found');
     }
+    return packet;
   }
 
   @Get('/')
   async getAllPackets() {
-    try {
-      return await this.telemetryService.getAllPackets();
-    } catch (error) {
-      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+    return await this.telemetryService.getAllPackets();
   }
 
   @Delete('/')
+  @HttpCode(HttpStatus.NO_CONTENT)
   async removeAllPackets() {
-    try {
-      await this.telemetryService.removeAllPackets();
-    } catch (error) {
-      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+    await this.telemetryService.removeAllPackets();
   }
 }

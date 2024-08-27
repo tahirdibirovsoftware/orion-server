@@ -20,41 +20,27 @@ let TelemetryController = class TelemetryController {
         this.telemetryService = telemetryService;
     }
     async addNewPacket(packet) {
-        try {
-            await this.telemetryService.addNewPacket(packet);
-        }
-        catch (error) {
-            throw new common_1.HttpException(error.message, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        await this.telemetryService.addNewPacket(packet);
+        return { message: 'Telemetry packet added successfully' };
     }
     async getLatestPacket() {
-        try {
-            return await this.telemetryService.getLatestPacket();
+        const packet = await this.telemetryService.getLatestPacket();
+        if (!packet) {
+            throw new common_1.NotFoundException('No telemetry packets found');
         }
-        catch (error) {
-            throw new common_1.HttpException(error.message, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        return packet;
     }
     async getAllPackets() {
-        try {
-            return await this.telemetryService.getAllPackets();
-        }
-        catch (error) {
-            throw new common_1.HttpException(error.message, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        return await this.telemetryService.getAllPackets();
     }
     async removeAllPackets() {
-        try {
-            await this.telemetryService.removeAllPackets();
-        }
-        catch (error) {
-            throw new common_1.HttpException(error.message, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        await this.telemetryService.removeAllPackets();
     }
 };
 exports.TelemetryController = TelemetryController;
 __decorate([
     (0, common_1.Post)('/'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.CREATED),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
@@ -74,6 +60,7 @@ __decorate([
 ], TelemetryController.prototype, "getAllPackets", null);
 __decorate([
     (0, common_1.Delete)('/'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.NO_CONTENT),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)

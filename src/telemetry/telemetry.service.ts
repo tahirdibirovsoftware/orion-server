@@ -60,10 +60,7 @@ export class TelemetryService {
 
     try {
       const result = await this.pool.query(query);
-      if (result.rows.length > 0) {
-        return result.rows[0];
-      }
-      return null;
+      return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
       console.error('Error getting latest telemetry packet:', error);
       throw new DatabaseException('Failed to retrieve latest telemetry packet.');
